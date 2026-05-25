@@ -5,7 +5,7 @@
 
 import React, { useRef } from 'react';
 import { useLSPStore } from '../store/lspStore';
-import { Award, BookOpen, Clock, Calendar, CheckCircle2, CircleAlert, Printer, User, Award as BadgeIcon } from 'lucide-react';
+import { Award, BookOpen, Clock, Calendar, CheckCircle2, CircleAlert, Printer, User, Award as BadgeIcon, ExternalLink, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AsesiDashboard() {
@@ -19,6 +19,28 @@ export default function AsesiDashboard() {
 
   // Filter assessments already submitted by this student
   const studentAssessments = state.assessments.filter(a => a.asesiId === student.id);
+
+  // Determine active APL-01 and APL-02 form links based on BNSP scheme requirements
+  const isDkv = student.jurusan === 'DKV';
+  const isMo = student.jurusan === 'MO';
+
+  let apl01Url = '';
+  let apl02Url = '';
+  let apl01Status: 'active' | 'inactive' | 'not-needed' = 'inactive';
+  let apl02Status: 'active' | 'inactive' | 'not-needed' = 'inactive';
+
+  if (isDkv) {
+    // Junior Desain Grafis / DKV Schemes
+    apl01Url = 'https://forms.gle/XvfBgpZ35o39Y9A76';
+    apl02Url = 'https://forms.gle/j2YXxydBu6XYTukm9';
+    apl01Status = 'active';
+    apl02Status = 'active';
+  } else if (isMo) {
+    // Pemeliharaan Mesin Kendaraan Ringan / MO Schemes
+    apl01Url = 'https://forms.gle/oKfX2KgNSiABVQpU6';
+    apl01Status = 'active';
+    apl02Status = 'not-needed';
+  }
 
   const handleRegister = (schemeId: string, schemeName: string) => {
     registerAssessment(schemeId);
@@ -67,6 +89,120 @@ export default function AsesiDashboard() {
                 <span className="text-emerald-400">★ KOMPETEN</span>
               ) : (
                 <span className="text-indigo-400">Belum Ujian</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION: AKTIVASI FORMULIR DOKUMEN APL-01 & APL-02 */}
+      <div className="bg-[#1e293b]/50 backdrop-blur-md p-6 rounded-3xl border border-slate-800/80 shadow-2xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-indigo-400" />
+              Kelengkapan Dokumen Pra-Asesmen Resmi (APL-01 & APL-02)
+            </h3>
+            <p className="text-xs text-slate-400">
+              Berikut adalah tautan pengisian formulir kelayakan pendaftaran (APL-01) dan ceklis mandiri (APL-02) yang telah diverifikasi dan diaktifkan oleh LSP Admin untuk kelas Anda.
+            </p>
+          </div>
+          <span className="px-2.5 py-0.5 text-[10px] uppercase font-mono font-bold rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 max-w-fit">
+            Terhubung & Sinkron
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          {/* CARD APL-01 */}
+          <div className="p-5 bg-[#0f172a]/60 rounded-2xl border border-slate-850 border-slate-800/80 flex flex-col justify-between gap-4">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-xs font-black tracking-wider text-slate-400 uppercase font-mono">FORMULIR APL-01</span>
+                {apl01Status === 'active' ? (
+                  <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Aktif & Terbuka
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1">
+                    <Lock className="h-2.5 w-2.5" />
+                    Belum Diaktifkan
+                  </span>
+                )}
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white">Permohonan Sertifikasi Kompetensi</h4>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Pernyataan pendaftaran resmi asesi beserta kelayakan berkas-berkas prasyarat dasar (KTP/Rapor/Fotokopi Kehadiran) untuk verifikasi BNSP.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              {apl01Status === 'active' ? (
+                <a
+                  href={apl01Url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
+                >
+                  Isi Formulir APL-01 Online <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              ) : (
+                <div className="w-full py-2.5 px-4 bg-slate-800/40 text-slate-500 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-805">
+                  <Lock className="h-3.5 w-3.5" /> Link Belum Tersedia oleh LSP Admin
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CARD APL-02 */}
+          <div className="p-5 bg-[#0f172a]/60 rounded-2xl border border-slate-850 border-slate-800/80 flex flex-col justify-between gap-4">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-xs font-black tracking-wider text-slate-400 uppercase font-mono">FORMULIR APL-02</span>
+                {apl02Status === 'active' ? (
+                  <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Aktif & Terbuka
+                  </span>
+                ) : apl02Status === 'not-needed' ? (
+                  <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center gap-1 font-sans">
+                    Fisik Otomatis
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1">
+                    <Lock className="h-2.5 w-2.5" />
+                    Belum Diaktifkan
+                  </span>
+                )}
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white">Asesmen Mandiri / Portofolio Keahlian</h4>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Formulir bukti unggah portofolio proyek dan penilaian diri mandiri terhadap daftar unit kompetensi keahlian BNSP sebelum diuji tatap muka.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              {apl02Status === 'active' ? (
+                <a
+                  href={apl02Url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
+                >
+                  Isi Formulir APL-02 Mandiri <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              ) : apl02Status === 'not-needed' ? (
+                <div className="w-full py-2.5 px-3.5 bg-indigo-950/20 border border-indigo-500/10 text-indigo-300 rounded-xl text-[11px] leading-relaxed select-none text-center">
+                  💡 Skema Pemeliharaan Mesin tidak menggunakan lembar APL-02 digital (Ceklis dilangsungkan manual di tempat bersama penguji asesor Anda).
+                </div>
+              ) : (
+                <div className="w-full py-2.5 px-4 bg-slate-800/40 text-slate-500 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-805">
+                  <Lock className="h-3.5 w-3.5" /> Link Belum Tersedia oleh LSP Admin
+                </div>
               )}
             </div>
           </div>
