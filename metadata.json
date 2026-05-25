@@ -1,0 +1,6 @@
+{
+  "name": "Sistem Admin LSP SMK Tanjung Priok",
+  "description": "Sistem Administrasi Lembaga Sertifikasi Profesi (LSP) SMK Tanjung Priok untuk asesi, asesor, dan admin.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
