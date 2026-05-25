@@ -110,13 +110,17 @@ export default function AsesiDashboard() {
                     <div className="shrink-0 sm:text-right">
                       {registered ? (
                         <div className="flex flex-col items-end">
-                          <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${
-                            registered.status === 'PENDING' ? 'bg-amber-950/40 text-amber-405 text-amber-400' :
-                            registered.status === 'APPROVED' ? 'bg-indigo-950/40 text-indigo-400' :
-                            'bg-emerald-950/40 text-emerald-400'
+                          <span className={`px-2.5 py-1 text-xs font-bold rounded-lg border ${
+                            registered.status === 'PENDING' ? 'bg-amber-950/40 text-amber-400 border-amber-500/20' :
+                            registered.status === 'REVISI' ? 'bg-rose-955/20 text-rose-400 border-rose-500/20' :
+                            registered.status === 'VALIDATED' ? 'bg-sky-955/20 text-sky-400 border-sky-500/20' :
+                            registered.status === 'APPROVED' ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500/10' :
+                            'bg-emerald-955/20 text-emerald-400 border-emerald-500/15'
                           }`}>
-                            {registered.status === 'PENDING' ? 'Pending Approval' :
-                             registered.status === 'APPROVED' ? 'Approved (Siap)' : 'Selesai'}
+                            {registered.status === 'PENDING' ? 'Menunggu Validasi' :
+                             registered.status === 'REVISI' ? 'Harus Revisi' :
+                             registered.status === 'VALIDATED' ? 'Dokumen Valid (Sertifikasi)' :
+                             registered.status === 'APPROVED' ? 'Terjadwal Uji' : 'Selesai'}
                           </span>
                         </div>
                       ) : (
@@ -153,21 +157,45 @@ export default function AsesiDashboard() {
                   <div key={asm.id} className="p-4 bg-[#0f172a]/60 rounded-xl border border-slate-800 space-y-3">
                     <div className="flex justify-between items-start">
                       <span className="text-[10px] text-slate-500 font-mono font-bold uppercase">{asm.id}</span>
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        asm.status === 'PENDING' ? 'bg-amber-950/40 text-amber-500' :
-                        asm.status === 'APPROVED' ? 'bg-indigo-950/40 text-indigo-400' :
-                        'bg-emerald-950/40 text-emerald-450'
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${
+                        asm.status === 'PENDING' ? 'bg-amber-95/40 text-amber-400 border-amber-500/10' :
+                        asm.status === 'REVISI' ? 'bg-rose-95/20 text-rose-400 border-rose-500/20' :
+                        asm.status === 'VALIDATED' ? 'bg-sky-95/20 text-sky-400 border-sky-505/20 font-sans' :
+                        asm.status === 'APPROVED' ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500/10' :
+                        'bg-emerald-955/20 text-emerald-450 border-emerald-500/15'
                       }`}>
-                        {asm.status}
+                        {asm.status === 'PENDING' ? 'MENUNGGU VALIDASI' :
+                         asm.status === 'REVISI' ? 'BUTUH REVISI' :
+                         asm.status === 'VALIDATED' ? 'TERVALIDASI' :
+                         asm.status === 'APPROVED' ? 'TERJADWAL' : 'SELESAI'}
                       </span>
                     </div>
 
                     <div className="space-y-1">
                       <h4 className="text-xs font-bold text-white">{asm.skemaName}</h4>
                       {asm.status === 'PENDING' && (
-                        <p className="text-[11px] text-slate-405 text-slate-400 flex items-center gap-1">
+                        <p className="text-[11px] text-slate-400 flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                          <span>Menunggu admin menugaskan Asesor Juru</span>
+                          <span>Menunggu verifikasi berkas kelayakan pendaftaran oleh LSP Admin.</span>
+                        </p>
+                      )}
+
+                      {asm.status === 'REVISI' && (
+                        <div className="p-3 bg-rose-950/20 rounded-lg text-[11px] text-slate-300 space-y-1 mt-2 border border-rose-500/15 font-sans">
+                          <p className="font-bold flex items-center gap-1.5 text-rose-400">
+                            <CircleAlert className="h-3.5 w-3.5" /> REVISI DOKUMEN WAJIB
+                          </p>
+                          <p className="text-white italic bg-[#0f172a]/80 p-2 rounded border border-slate-800/80 leading-relaxed">
+                            &ldquo;{asm.catatanAsesor || 'Silakan lengkapi fotokopi sertifikat kepesertaan kelas atau data rapor.'}&rdquo;
+                          </p>
+                          <p className="text-[9px] text-slate-500 mt-1">Harap hubungi LSP Admin segera setelah berkas diperbaiki.</p>
+                        </div>
+                      )}
+
+                      {asm.status === 'VALIDATED' && (
+                        <p className="text-[11px] text-slate-300 flex items-center gap-1 mt-2 bg-sky-500/5 p-2.5 rounded-lg border border-sky-500/15 font-sans">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+                          <span>Dokumen pendaftaran sudah VALID. Menunggu tim LSP menjadwalkan Guru Penguji Asesor.</span>
                         </p>
                       )}
                       

@@ -293,6 +293,55 @@ class LSPStoreManager {
     this.notify();
   }
 
+  // Admin Action: Validate / Approve assessment application
+  public validateAssessment(assessmentId: string): boolean {
+    let affected = false;
+    this.state.assessments = this.state.assessments.map(a => {
+      if (a.id === assessmentId) {
+        affected = true;
+        return {
+          ...a,
+          status: 'VALIDATED',
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return a;
+    });
+
+    if (affected) {
+      this.saveToLocalStorage();
+      this.addLog(`[Admin] Validasi: Permohonan ${assessmentId} disetujui (Tervalidasi).`);
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
+  // Admin Action: Require revision for assessment application
+  public revisiAssessment(assessmentId: string, catatan?: string): boolean {
+    let affected = false;
+    this.state.assessments = this.state.assessments.map(a => {
+      if (a.id === assessmentId) {
+        affected = true;
+        return {
+          ...a,
+          status: 'REVISI',
+          catatanAsesor: catatan || 'Silakan merevisi berkas kelayakan pendaftaran.',
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return a;
+    });
+
+    if (affected) {
+      this.saveToLocalStorage();
+      this.addLog(`[Admin] Revisi: Permohonan ${assessmentId} memerlukan revisi.`);
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
   // Assessor Actions: Submit assessment scores
   public gradeAssessment(assessmentId: string, result: 'K' | 'BK', notes: string) {
     this.state.assessments = this.state.assessments.map(a => {
@@ -311,6 +360,150 @@ class LSPStoreManager {
     this.saveToLocalStorage();
     this.addLog(`[Asesor] Uji Kompetensi dinilai: Pengujian ${assessmentId} selesai dengan predikat ${result === 'K' ? 'KOMPETEN' : 'BELUM KOMPETEN'}`);
     this.notify();
+  }
+
+  // Student CRUD Operations
+  public addStudent(student: Omit<UserProfile, 'role'>): boolean {
+    const newStudent: UserProfile = {
+      ...student,
+      role: 'asesi'
+    };
+    newStudent.id = newStudent.id.trim().toLowerCase();
+    
+    const exists = this.state.students.some(s => s.id === newStudent.id);
+    if (exists) {
+      this.addLog(`[Siswa] Gagal menambah: ID "${newStudent.id}" sudah terdaftar.`);
+      return false;
+    }
+
+    this.state.students = [newStudent, ...this.state.students];
+    this.saveToLocalStorage();
+    this.addLog(`[Siswa] Menambahkan asesi baru: ${newStudent.name}`);
+    this.notify();
+    return true;
+  }
+
+  public addStudentsBulk(newStudents: Omit<UserProfile, 'role'>[]) {
+    let addedCount = 0;
+    let duplicateCount = 0;
+    
+    const updatedStudents = [...this.state.students];
+    
+    for (const student of newStudents) {
+      const id = student.id.trim().toLowerCase();
+      if (!id || !student.name) continue;
+      const exists = updatedStudents.some(s => s.id === id);
+      if (exists) {
+        duplicateCount++;
+        continue;
+      }
+      updatedStudents.push({
+        ...student,
+        id,
+        role: 'asesi'
+      });
+      addedCount++;
+    }
+    
+    if (addedCount > 0) {
+      this.state.students = updatedStudents;
+      this.saveToLocalStorage();
+      this.addLog(`[Siswa] Impor CSV Berhasil: Menambahkan ${addedCount} asesi baru. (${duplicateCount} duplikat diabaikan)`);
+      this.notify();
+    } else {
+      this.addLog(`[Siswa] Impor CSV Selesai: Seluruh data (${duplicateCount} baris) sudah ada / duplikat.`);
+    }
+    return { addedCount, duplicateCount };
+  }
+
+  public updateStudent(id: string, updatedFields: Partial<Omit<UserProfile, 'id' | 'role'>>): boolean {
+    this.state.students = this.state.students.map(s => 
+      s.id === id ? { ...s, ...updatedFields } : s
+    );
+    this.saveToLocalStorage();
+    this.addLog(`[Siswa] Mengubah data asesi: ${id}`);
+    this.notify();
+    return true;
+  }
+
+  public deleteStudent(id: string): boolean {
+    this.state.students = this.state.students.filter(s => s.id !== id);
+    this.saveToLocalStorage();
+    this.addLog(`[Siswa] Menghapus data asesi: ${id}`);
+    this.notify();
+    return true;
+  }
+
+  // Assessor CRUD Operations
+  public addAssessor(assessor: Assessor): boolean {
+    const newAssessor: Assessor = {
+      ...assessor,
+      id: assessor.id.trim().toLowerCase()
+    };
+    const exists = this.state.assessors.some(a => a.id === newAssessor.id);
+    if (exists) {
+      this.addLog(`[Asesor] Gagal menambahkan: ID "${newAssessor.id}" sudah digunakan.`);
+      return false;
+    }
+    this.state.assessors = [newAssessor, ...this.state.assessors];
+    this.saveToLocalStorage();
+    this.addLog(`[Asesor] Menambahkan asesor terlisensi baru: ${newAssessor.name}`);
+    this.notify();
+    return true;
+  }
+
+  public updateAssessor(id: string, updatedFields: Partial<Omit<Assessor, 'id'>>): boolean {
+    this.state.assessors = this.state.assessors.map(a =>
+      a.id === id ? { ...a, ...updatedFields } : a
+    );
+    this.saveToLocalStorage();
+    this.addLog(`[Asesor] Mengubah data asesor: ${id}`);
+    this.notify();
+    return true;
+  }
+
+  public deleteAssessor(id: string): boolean {
+    this.state.assessors = this.state.assessors.filter(a => a.id !== id);
+    this.saveToLocalStorage();
+    this.addLog(`[Asesor] Menghapus data asesor: ${id}`);
+    this.notify();
+    return true;
+  }
+
+  // Scheme CRUD Operations
+  public addSchemeRecord(scheme: Scheme): boolean {
+    const newScheme: Scheme = {
+      ...scheme,
+      id: scheme.id.trim().toLowerCase()
+    };
+    const exists = this.state.schemes.some(s => s.id === newScheme.id);
+    if (exists) {
+      this.addLog(`[Skema] Gagal menambahkan: ID "${newScheme.id}" sudah digunakan.`);
+      return false;
+    }
+    this.state.schemes = [...this.state.schemes, newScheme];
+    this.saveToLocalStorage();
+    this.addLog(`[Skema] Menambahkan skema baru: ${newScheme.name}`);
+    this.notify();
+    return true;
+  }
+
+  public updateScheme(id: string, updatedFields: Partial<Omit<Scheme, 'id'>>): boolean {
+    this.state.schemes = this.state.schemes.map(s =>
+      s.id === id ? { ...s, ...updatedFields } : s
+    );
+    this.saveToLocalStorage();
+    this.addLog(`[Skema] Mengubah skema kompetensi: ${id}`);
+    this.notify();
+    return true;
+  }
+
+  public deleteScheme(id: string): boolean {
+    this.state.schemes = this.state.schemes.filter(s => s.id !== id);
+    this.saveToLocalStorage();
+    this.addLog(`[Skema] Menghapus skema kompetensi: ${id}`);
+    this.notify();
+    return true;
   }
 
   // Database Synchronization to real/simulated Firebase Firestore!
@@ -397,9 +590,21 @@ export function useLSPStore() {
     addScheme: (s: Omit<Scheme, 'id'>) => lspStore.addScheme(s),
     registerAssessment: (sId: string) => lspStore.registerAssessment(sId),
     assignAssessor: (aId: string, asId: string, date: string) => lspStore.assignAssessor(aId, asId, date),
+    validateAssessment: (id: string) => lspStore.validateAssessment(id),
+    revisiAssessment: (id: string, catatan?: string) => lspStore.revisiAssessment(id, catatan),
     gradeAssessment: (aId: string, res: 'K' | 'BK', notes: string) => lspStore.gradeAssessment(aId, res, notes),
     syncWithFirebase: () => lspStore.syncWithFirebase(),
     resetData: () => lspStore.resetData(),
-    addLog: (m: string) => lspStore.addLog(m)
+    addLog: (m: string) => lspStore.addLog(m),
+    addStudent: (s: Omit<UserProfile, 'role'>) => lspStore.addStudent(s),
+    addStudentsBulk: (s: Omit<UserProfile, 'role'>[]) => lspStore.addStudentsBulk(s),
+    updateStudent: (id: string, s: Partial<Omit<UserProfile, 'id' | 'role'>>) => lspStore.updateStudent(id, s),
+    deleteStudent: (id: string) => lspStore.deleteStudent(id),
+    addAssessor: (a: Assessor) => lspStore.addAssessor(a),
+    updateAssessor: (id: string, a: Partial<Omit<Assessor, 'id'>>) => lspStore.updateAssessor(id, a),
+    deleteAssessor: (id: string) => lspStore.deleteAssessor(id),
+    addSchemeRecord: (s: Scheme) => lspStore.addSchemeRecord(s),
+    updateScheme: (id: string, s: Partial<Omit<Scheme, 'id'>>) => lspStore.updateScheme(id, s),
+    deleteScheme: (id: string) => lspStore.deleteScheme(id)
   };
 }

@@ -46,7 +46,7 @@ export interface Assessment {
   asesorId: string | null; // Assigned Assessor
   asesorName: string | null;
   tanggalUjian: string;
-  status: 'PENDING' | 'APPROVED' | 'COMPLETED';
+  status: 'PENDING' | 'REVISI' | 'VALIDATED' | 'APPROVED' | 'COMPLETED';
   hasil: 'K' | 'BK' | null; // K = Kompeten, BK = Belum Kompeten, null = Belum Dinilai
   catatanAsesor?: string;
   updatedAt: string;
