@@ -9,7 +9,7 @@ import { Scheme } from '../types';
 import {
   Users, Award, ClipboardCheck, Calendar, BookOpen, Plus, Search, CheckCircle, 
   MapPin, ShieldCheck, Mail, Clock, Filter, AlertCircle, Trash2, Edit, Upload, 
-  Download, UserPlus, X, FileText
+  Download, UserPlus, X, FileText, ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -588,7 +588,33 @@ export default function AdminDashboard() {
                                 <span className="block text-white font-medium">{asm.kelas}</span>
                                 <span className="text-[10px] text-slate-500">Jurusan {asm.jurusan}</span>
                               </td>
-                              <td className="p-3 font-medium text-slate-300">{asm.skemaName}</td>
+                              <td className="p-3">
+                                <span className="font-medium text-slate-300 block leading-snug">{asm.skemaName}</span>
+                                {(asm.apl01Link || asm.apl02Link) && (
+                                  <div className="flex flex-wrap gap-2 mt-1.5 font-sans">
+                                    {asm.apl01Link && (
+                                      <a
+                                        href={asm.apl01Link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 transition-all font-semibold"
+                                      >
+                                        APL-01 <ExternalLink className="h-2.5 w-2.5" />
+                                      </a>
+                                    )}
+                                    {asm.apl02Link && (
+                                      <a
+                                        href={asm.apl02Link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 transition-all font-semibold"
+                                      >
+                                        APL-02 <ExternalLink className="h-2.5 w-2.5" />
+                                      </a>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
                               <td className="p-3">
                                 {asm.asesorName ? (
                                   <div className="space-y-0.5">

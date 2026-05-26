@@ -140,7 +140,7 @@ export const initialAssessors: Assessor[] = [
 
 export const initialSchemes: Scheme[] = [
   // DKV
-  { id: 'sch-dkv-1', code: 'SKM-DKV-01', name: 'Desain Grafis Pratama (Digital Illustration)', jurusan: 'DKV', description: 'Skema sertifikasi kompetensi pembuatan ilustrasi digital dan materi grafis publikasi.', unitsCount: 7 },
+  { id: 'sch-dkv-1', code: 'SKM-DKV-01', name: 'Junior Operator Desain Grafis', jurusan: 'DKV', description: 'Skema sertifikasi kompetensi Junior Operator Desain Grafis berstandar BNSP.', unitsCount: 7 },
   { id: 'sch-dkv-2', code: 'SKM-DKV-02', name: 'Fotografi Digital Kreatif', jurusan: 'DKV', description: 'Sertifikasi penguasaan teknik kamera DSLR, pencahayaan studio, dan penataan kreatif.', unitsCount: 5 },
   // MK (Permesinan Kapal)
   { id: 'sch-mk-1', code: 'SKM-MK-01', name: 'Pengoperasian Mesin Bubut Kapal', jurusan: 'MK', description: 'Kompetensi pengerjaan presisi komponen logam menggunakan bubut mekanis kapal.', unitsCount: 8 },

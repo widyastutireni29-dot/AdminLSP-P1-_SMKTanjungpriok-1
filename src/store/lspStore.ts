@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { UserProfile, Scheme, Assessor, Assessment, UserRole } from '../types';
+import { UserProfile, Scheme, Assessor, Assessment, UserRole, LSPNotification } from '../types';
 import { getInitialStudents, initialAssessors, initialSchemes } from '../data/initialData';
 import { db, auth, OperationType, handleFirestoreError } from '../firebase';
 import { collection, doc, getDocs, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
@@ -20,6 +20,7 @@ export interface LSPState {
   syncStatus: 'idle' | 'syncing' | 'success' | 'error';
   isFirebaseActive: boolean;
   logs: string[];
+  notifications: LSPNotification[];
 }
 
 // Simple subscription store pattern so all components can access the global state
@@ -35,6 +36,7 @@ class LSPStoreManager {
     const savedAssessors = localStorage.getItem('lsp_assessors');
     const savedSchemes = localStorage.getItem('lsp_schemes');
     const savedAssessments = localStorage.getItem('lsp_assessments');
+    const savedNotifications = localStorage.getItem('lsp_notifications');
 
     this.state = {
       currentUser: savedUser ? JSON.parse(savedUser) : null,
@@ -42,14 +44,60 @@ class LSPStoreManager {
       assessors: savedAssessors ? JSON.parse(savedAssessors) : initialAssessors,
       schemes: savedSchemes ? JSON.parse(savedSchemes) : initialSchemes,
       assessments: savedAssessments ? JSON.parse(savedAssessments) : this.generateMockAssessments(),
+      notifications: savedNotifications ? JSON.parse(savedNotifications) : this.generateMockNotifications(),
       darkMode: savedDarkMode,
       syncStatus: 'idle',
       isFirebaseActive: false,
       logs: ['[System] Sistem LSP SMK Tanjung Priok dideteksi siap.']
     };
 
+    // Ensure we migrate scheme names
+    this.state.schemes = this.state.schemes.map(s => {
+      if (s.id === 'sch-dkv-1') {
+        return { 
+          ...s, 
+          name: 'Junior Operator Desain Grafis', 
+          description: 'Skema sertifikasi kompetensi Junior Operator Desain Grafis berstandar BNSP.' 
+        };
+      }
+      if (s.id === 'sch-mo-1' && s.name !== 'Pemeliharaan Mesin Kendaraan Ringan') {
+        return {
+          ...s,
+          name: 'Pemeliharaan Mesin Kendaraan Ringan',
+          description: 'Skema sertifikasi kompetensi Pemeliharaan Mesin Kendaraan Ringan berstandar BNSP.'
+        };
+      }
+      return s;
+    });
+
     // Auto check firebase connection status
     this.checkFirebase();
+  }
+
+  private generateMockNotifications(): LSPNotification[] {
+    const students = getInitialStudents();
+    return [
+      {
+        id: 'notif-1',
+        userId: 'siswa1',
+        message: 'Selamat! Surat Keputusan Sertifikasi Anda telah diterbitkan dengan predikat KOMPETEN.',
+        type: 'status_change',
+        assessmentId: 'asm-1',
+        assessmentName: 'Pengoperasian Mesin Bubut Kapal',
+        read: false,
+        createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
+      },
+      {
+        id: 'notif-2',
+        userId: 'siswa24',
+        message: 'Penjadwalan Uji Kompetensi: Pengajuan Anda telah disetujui. Asesor Supriyadi ditugaskan untuk menguji Anda.',
+        type: 'assigned',
+        assessmentId: 'asm-2',
+        assessmentName: 'Pemeliharaan Mesin Kendaraan Ringan (PMKR)',
+        read: false,
+        createdAt: new Date(Date.now() - 1 * 3600 * 1000).toISOString()
+      }
+    ];
   }
 
   private generateMockAssessments(): Assessment[] {
@@ -135,6 +183,39 @@ class LSPStoreManager {
     localStorage.setItem('lsp_assessors', JSON.stringify(this.state.assessors));
     localStorage.setItem('lsp_schemes', JSON.stringify(this.state.schemes));
     localStorage.setItem('lsp_assessments', JSON.stringify(this.state.assessments));
+    localStorage.setItem('lsp_notifications', JSON.stringify(this.state.notifications));
+  }
+
+  public addNotification(userId: string, type: 'status_change' | 'feedback' | 'assigned', assessmentId: string, assessmentName: string, message: string) {
+    const newNotif: LSPNotification = {
+      id: `notif-${Date.now()}`,
+      userId,
+      message,
+      type,
+      assessmentId,
+      assessmentName,
+      read: false,
+      createdAt: new Date().toISOString()
+    };
+    this.state.notifications = [newNotif, ...this.state.notifications];
+    this.saveToLocalStorage();
+    this.notify();
+  }
+
+  public markNotificationAsRead(id: string) {
+    this.state.notifications = this.state.notifications.map(n => 
+      n.id === id ? { ...n, read: true } : n
+    );
+    this.saveToLocalStorage();
+    this.notify();
+  }
+
+  public markAllNotificationsAsRead(userId: string) {
+    this.state.notifications = this.state.notifications.map(n => 
+      n.userId === userId ? { ...n, read: true } : n
+    );
+    this.saveToLocalStorage();
+    this.notify();
   }
 
   public addLog(message: string) {
@@ -233,7 +314,7 @@ class LSPStoreManager {
   }
 
   // Assessment Registration (Asesi registries)
-  public registerAssessment(schemeId: string) {
+  public registerAssessment(schemeId: string, apl01Link?: string, apl02Link?: string) {
     const student = this.state.currentUser;
     if (!student || student.role !== 'asesi') return;
 
@@ -260,6 +341,8 @@ class LSPStoreManager {
       tanggalUjian: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 weeks out
       status: 'PENDING',
       hasil: null,
+      apl01Link,
+      apl02Link,
       updatedAt: new Date().toISOString()
     };
 
@@ -290,6 +373,18 @@ class LSPStoreManager {
 
     this.saveToLocalStorage();
     this.addLog(`[Admin] Penjadwalan Ujian: Pengajuan ${assessmentId} disetujui, asesor diamanahi: ${assessor.name} tanggal ${examDate}`);
+    
+    const affectedAsm = this.state.assessments.find(a => a.id === assessmentId);
+    if (affectedAsm) {
+      this.addNotification(
+        affectedAsm.asesiId,
+        'assigned',
+        affectedAsm.id,
+        affectedAsm.skemaName,
+        `Penyelenggaraan uji skema "${affectedAsm.skemaName}" disetujui. Penguji Asesor: ${assessor.name}, ujian luring dijadwalkan pada ${examDate}.`
+      );
+    }
+    
     this.notify();
   }
 
@@ -311,6 +406,18 @@ class LSPStoreManager {
     if (affected) {
       this.saveToLocalStorage();
       this.addLog(`[Admin] Validasi: Permohonan ${assessmentId} disetujui (Tervalidasi).`);
+      
+      const affectedAsm = this.state.assessments.find(a => a.id === assessmentId);
+      if (affectedAsm) {
+        this.addNotification(
+          affectedAsm.asesiId,
+          'status_change',
+          affectedAsm.id,
+          affectedAsm.skemaName,
+          `Prasyarat pendaftaran skema "${affectedAsm.skemaName}" Anda telah tervalidasi oleh Admin. Menunggu penjadwalan asesor penguji.`
+        );
+      }
+      
       this.notify();
       return true;
     }
@@ -336,6 +443,18 @@ class LSPStoreManager {
     if (affected) {
       this.saveToLocalStorage();
       this.addLog(`[Admin] Revisi: Permohonan ${assessmentId} memerlukan revisi.`);
+      
+      const affectedAsm = this.state.assessments.find(a => a.id === assessmentId);
+      if (affectedAsm) {
+        this.addNotification(
+          affectedAsm.asesiId,
+          'feedback',
+          affectedAsm.id,
+          affectedAsm.skemaName,
+          `Berkas pendaftaran skema "${affectedAsm.skemaName}" Anda memerlukan REVISI. Catatan: "${catatan || 'Mohon cek berkas kelengkapan APL-01 / APL-02.'}"`
+        );
+      }
+      
       this.notify();
       return true;
     }
@@ -359,6 +478,18 @@ class LSPStoreManager {
 
     this.saveToLocalStorage();
     this.addLog(`[Asesor] Uji Kompetensi dinilai: Pengujian ${assessmentId} selesai dengan predikat ${result === 'K' ? 'KOMPETEN' : 'BELUM KOMPETEN'}`);
+    
+    const affectedAsm = this.state.assessments.find(a => a.id === assessmentId);
+    if (affectedAsm) {
+      this.addNotification(
+        affectedAsm.asesiId,
+        'feedback',
+        affectedAsm.id,
+        affectedAsm.skemaName,
+        `Penilaian uji skema "${affectedAsm.skemaName}" telah diselesaikan. Anda dinyatakan: ${result === 'K' ? 'KOMPETEN (K) 🎉' : 'BELUM KOMPETEN (BK)'}. Catatan asesor: "${notes}"`
+      );
+    }
+    
     this.notify();
   }
 
@@ -588,11 +719,13 @@ export function useLSPStore() {
     toggleDarkMode: () => lspStore.toggleDarkMode(),
     toggleAssessorStatus: (id: string) => lspStore.toggleAssessorStatus(id),
     addScheme: (s: Omit<Scheme, 'id'>) => lspStore.addScheme(s),
-    registerAssessment: (sId: string) => lspStore.registerAssessment(sId),
+    registerAssessment: (sId: string, apl01?: string, apl02?: string) => lspStore.registerAssessment(sId, apl01, apl02),
     assignAssessor: (aId: string, asId: string, date: string) => lspStore.assignAssessor(aId, asId, date),
     validateAssessment: (id: string) => lspStore.validateAssessment(id),
     revisiAssessment: (id: string, catatan?: string) => lspStore.revisiAssessment(id, catatan),
     gradeAssessment: (aId: string, res: 'K' | 'BK', notes: string) => lspStore.gradeAssessment(aId, res, notes),
+    markNotificationAsRead: (id: string) => lspStore.markNotificationAsRead(id),
+    markAllNotificationsAsRead: (uId: string) => lspStore.markAllNotificationsAsRead(uId),
     syncWithFirebase: () => lspStore.syncWithFirebase(),
     resetData: () => lspStore.resetData(),
     addLog: (m: string) => lspStore.addLog(m),

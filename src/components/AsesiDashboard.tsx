@@ -5,14 +5,21 @@
 
 import React, { useRef } from 'react';
 import { useLSPStore } from '../store/lspStore';
-import { Award, BookOpen, Clock, Calendar, CheckCircle2, CircleAlert, Printer, User, Award as BadgeIcon, ExternalLink, Lock } from 'lucide-react';
+import { Award, BookOpen, Clock, Calendar, CheckCircle2, CircleAlert, Printer, User, Award as BadgeIcon, ExternalLink, Lock, Bell, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AsesiDashboard() {
-  const { state, registerAssessment } = useLSPStore();
+  const { state, registerAssessment, markNotificationAsRead, markAllNotificationsAsRead } = useLSPStore();
   const student = state.currentUser;
 
+  const [apl01Link, setApl01Link] = React.useState('');
+  const [apl02Link, setApl02Link] = React.useState('');
+  const [isNotifOpen, setIsNotifOpen] = React.useState(true);
+
   if (!student || student.role !== 'asesi') return null;
+
+  const notifications = state.notifications ? state.notifications.filter(n => n.userId === student.id) : [];
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   // Filter schemes matching student's jurusan
   const matchingSchemes = state.schemes.filter(s => s.jurusan === student.jurusan);
@@ -42,8 +49,37 @@ export default function AsesiDashboard() {
     apl02Status = 'not-needed';
   }
 
+  // Helper to check if a scheme is currently active / opened
+  const isSchemeActive = (schId: string) => {
+    if (student.jurusan === 'DKV') {
+      return schId === 'sch-dkv-1'; // Junior Operator Desain Grafis
+    }
+    if (student.jurusan === 'MO') {
+      return schId === 'sch-mo-1'; // Pemeliharaan Mesin Kendaraan Ringan
+    }
+    return false; // Other schemes are disabled
+  };
+
+  const isDkvAndMissingLinks = isDkv && (!apl01Link.trim() || !apl02Link.trim());
+  const isMoAndMissingLinks = isMo && !apl01Link.trim();
+  const isMissingLinks = isDkvAndMissingLinks || isMoAndMissingLinks;
+
   const handleRegister = (schemeId: string, schemeName: string) => {
-    registerAssessment(schemeId);
+    if (!isSchemeActive(schemeId)) {
+      toast.error('Skema ini sedang tidak aktif atau belum dibuka oleh Admin.');
+      return;
+    }
+
+    if (isDkv && (!apl01Link.trim() || !apl02Link.trim())) {
+      toast.error('Gagal mendaftar! Harap isi kedua link Google Drive Berkas APL-01 dan APL-02 terlebih dahulu.');
+      return;
+    }
+    if (isMo && !apl01Link.trim()) {
+      toast.error('Gagal mendaftar! Harap isi link Google Drive Berkas APL-01 terlebih dahulu.');
+      return;
+    }
+
+    registerAssessment(schemeId, apl01Link.trim(), isDkv ? apl02Link.trim() : undefined);
     toast.success(`Berhasil mendaftar uji kompetensi: ${schemeName}. Menunggu approval admin.`);
   };
 
@@ -93,6 +129,131 @@ export default function AsesiDashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* NOTIFICATION SYSTEM SECTION */}
+      <div className="bg-[#1e293b]/50 backdrop-blur-md rounded-3xl border border-slate-800/80 shadow-2xl overflow-hidden font-sans">
+        <div 
+          onClick={() => setIsNotifOpen(!isNotifOpen)} 
+          className="p-5 flex items-center justify-between gap-4 cursor-pointer select-none hover:bg-slate-850/20 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="h-10 w-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                <Bell className="h-5 w-5" />
+              </div>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-500 text-[9px] text-white font-bold items-center justify-center">
+                    {unreadCount}
+                  </span>
+                </span>
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                Pemberitahuan Sistem LSP Digital
+                <span className="px-2 py-0.5 text-[9px] tracking-wider uppercase bg-indigo-505 bg-indigo-500/10 text-indigo-400 border border-indigo-500/15 font-bold rounded-md font-mono">
+                  BNSP Digital AI Check
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                {unreadCount > 0 
+                  ? `Ada ${unreadCount} pemberitahuan baru yang membutuhkan perhatian Anda.` 
+                  : 'Seluruh berkas pendaftaran & status hasil sertifikasi Anda sudah tervalidasi.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5" onClick={(e) => e.stopPropagation()}>
+            {unreadCount > 0 && (
+              <button
+                onClick={() => {
+                  markAllNotificationsAsRead(student.id);
+                  toast.success('Semua pemberitahuan ditandai telah dibaca.');
+                }}
+                className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all border border-slate-700/60"
+              >
+                <Check className="h-3 w-3" /> Tandai Semua Dibaca
+              </button>
+            )}
+            <button 
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              className="text-xs text-slate-400 hover:text-white px-2 py-1 bg-slate-800/40 hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
+            >
+              {isNotifOpen ? 'Sembunyikan' : 'Tampilkan'}
+            </button>
+          </div>
+        </div>
+
+        {isNotifOpen && (
+          <div className="border-t border-slate-800/80 p-5 pt-3 divide-y divide-slate-800/40 max-h-[340px] overflow-y-auto animate-fade-in">
+            {notifications.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-xs italic">
+                Belum ada pemberitahuan dari Admin LSP atau Asesor Penguji.
+              </div>
+            ) : (
+              notifications.map((notif) => {
+                let iconBg = 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+                let typeLabel = 'Admin LSP';
+                if (notif.type === 'assigned') {
+                  iconBg = 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+                  typeLabel = 'JADWAL ASESOR';
+                } else if (notif.type === 'feedback') {
+                  iconBg = 'bg-rose-500/10 text-rose-455 text-rose-400 border-rose-500/20';
+                  typeLabel = 'EVALUASI & REVISI';
+                } else if (notif.type === 'status_change') {
+                  iconBg = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                  typeLabel = 'STATUS VERIFIKASI';
+                }
+
+                return (
+                  <div 
+                    key={notif.id} 
+                    className={`py-3.5 flex items-start justify-between gap-4 transition-all ${
+                      !notif.read ? 'bg-indigo-500/5 -mx-5 px-5 border-l-2 border-indigo-500' : ''
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 border ${iconBg}`}>
+                        <Bell className="h-4 w-4 shrink-0" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
+                            {typeLabel}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {new Date(notif.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} - {new Date(notif.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                          </span>
+                          {!notif.read && (
+                            <span className="h-1.5 w-1.5 bg-rose-500 rounded-full"></span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-200 leading-relaxed font-sans">{notif.message}</p>
+                        <p className="text-[10px] text-indigo-400 font-medium font-sans">Skema: {notif.assessmentName}</p>
+                      </div>
+                    </div>
+
+                    {!notif.read && (
+                      <button
+                        onClick={() => {
+                          markNotificationAsRead(notif.id);
+                          toast.success('Pemberitahuan ditandai sebagai dibaca.');
+                        }}
+                        className="p-1 px-2.5 hover:bg-indigo-500/10 hover:text-indigo-300 text-slate-400 rounded-lg transition-all text-[10px] font-bold flex items-center gap-1 border border-transparent hover:border-indigo-500/10 cursor-pointer shrink-0"
+                        title="Tandai telah dibaca"
+                      >
+                        <Check className="h-3 w-3 shrink-0" /> Dibaca
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
       </div>
 
       {/* SECTION: AKTIVASI FORMULIR DOKUMEN APL-01 & APL-02 */}
@@ -208,8 +369,7 @@ export default function AsesiDashboard() {
           </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left Column: Register New Schemes */}
         <div className="lg:col-span-2 space-y-6">
@@ -219,24 +379,87 @@ export default function AsesiDashboard() {
               <p className="text-xs text-slate-400">Pilih skema kompetensi BNSP yang tersedia sesuai dengan program keahlian Anda</p>
             </div>
 
+            {/* INPUT LINK FORM UNTUK MULTI-STEP VERIFIKASI SEBELUM DAFTAR */}
+            {matchingSchemes.some(sch => !studentAssessments.some(a => a.skemaId === sch.id) && isSchemeActive(sch.id)) && (
+              <div className="p-5 bg-indigo-500/10 rounded-2xl border border-indigo-500/25 space-y-4 mb-2 animate-fade-in font-sans">
+                <div className="flex items-center gap-2 text-indigo-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Langkah Mandiri: Masukkan Link Google Drive Berkas APL-01 & APL-02</span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Sebelum mendaftar, silakan lakukan pengisian berkas kelayakan pendaftaran dan ceklis mandiri, unggah berkas Anda ke Google Drive, lalu tempelkan (paste) link sharing folder / file Google Drive Anda di bawah ini agar dapat divalidasi oleh Admin LSP:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-bold text-slate-400 font-mono uppercase">
+                      Link Google Drive Berkas APL-01 <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="Contoh: https://drive.google.com/drive/folders/... atau link file"
+                      value={apl01Link}
+                      onChange={(e) => setApl01Link(e.target.value)}
+                      className="w-full text-xs px-3.5 py-2.5 bg-[#0f172a]/90 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all"
+                    />
+                  </div>
+                  {isDkv ? (
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-bold text-slate-445 text-slate-400 font-mono uppercase">
+                        Link Google Drive Berkas APL-02 <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="Contoh: https://drive.google.com/drive/folders/... atau link file"
+                        value={apl02Link}
+                        onChange={(e) => setApl02Link(e.target.value)}
+                        className="w-full text-xs px-3.5 py-2.5 bg-[#0f172a]/90 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 flex flex-col justify-end">
+                      <label className="block text-[11px] font-bold text-slate-500 font-mono uppercase">
+                        Link Google Drive Berkas APL-02 <span className="text-slate-500">(Tidak Diperlukan)</span>
+                      </label>
+                      <div className="text-[11px] text-indigo-300 leading-normal bg-indigo-950/20 border border-indigo-900/40 p-2.5 h-[38px] flex items-center rounded-xl font-sans">
+                        Skema MO tidak memerlukan APL-02 online.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="divide-y divide-slate-800/70">
               {matchingSchemes.map(sch => {
                 // Check if already registered
                 const registered = studentAssessments.find(a => a.skemaId === sch.id);
+                const active = isSchemeActive(sch.id);
 
                 return (
-                  <div key={sch.id} className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div key={sch.id} className={`py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${!active && !registered ? 'opacity-50' : ''}`}>
                     <div className="space-y-1.5 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="px-2 py-0.5 rounded text-[9px] uppercase font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                           {sch.code}
                         </span>
-                        <span className="text-[10px] text-slate-500">
+                        <span className="text-[10px] text-slate-550">
                           {sch.unitsCount} Unit Kompetensi
                         </span>
+                        {active ? (
+                          <span className="px-2 py-0.5 text-[9px] uppercase font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-1 font-mono animate-fade-in">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Skema Aktif
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-[9px] uppercase font-bold text-slate-400 bg-slate-800/50 border border-slate-700/50 rounded-full flex items-center gap-1 font-mono">
+                            <Lock className="h-2 w-2" />
+                            Belum Dibuka (Non-Aktif)
+                          </span>
+                        )}
                       </div>
-                      <h4 className="text-sm font-bold text-white leading-snug">
+                      <h4 className="text-sm font-bold text-white leading-snug flex items-center gap-1.5">
                         {sch.name}
+                        {!active && <Lock className="h-3.5 w-3.5 text-slate-500 shrink-0" />}
                       </h4>
                       <p className="text-xs text-slate-400 leading-relaxed">
                         {sch.description}
@@ -249,7 +472,7 @@ export default function AsesiDashboard() {
                           <span className={`px-2.5 py-1 text-xs font-bold rounded-lg border ${
                             registered.status === 'PENDING' ? 'bg-amber-950/40 text-amber-400 border-amber-500/20' :
                             registered.status === 'REVISI' ? 'bg-rose-955/20 text-rose-400 border-rose-500/20' :
-                            registered.status === 'VALIDATED' ? 'bg-sky-955/20 text-sky-400 border-sky-500/20' :
+                            registered.status === 'VALIDATED' ? 'bg-sky-955/20 text-sky-400 border-sky-505/20' :
                             registered.status === 'APPROVED' ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500/10' :
                             'bg-emerald-955/20 text-emerald-400 border-emerald-500/15'
                           }`}>
@@ -259,12 +482,23 @@ export default function AsesiDashboard() {
                              registered.status === 'APPROVED' ? 'Terjadwal Uji' : 'Selesai'}
                           </span>
                         </div>
-                      ) : (
+                      ) : active ? (
                         <button
                           onClick={() => handleRegister(sch.id, sch.name)}
-                          className="w-full sm:w-auto px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs cursor-pointer transition-colors shadow-sm"
+                          className={`w-full sm:w-auto px-4 py-2 font-bold rounded-xl text-xs cursor-pointer transition-all shadow-sm ${
+                            isMissingLinks
+                              ? 'bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 border border-indigo-500/15 shadow-none'
+                              : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                          }`}
                         >
-                          Daftar Ujian
+                          {isMissingLinks ? 'Isi Link GDrive Dahulu' : 'Daftar Ujian Sekarang'}
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="w-full sm:w-auto px-4 py-2 bg-slate-800 text-slate-600 font-semibold rounded-xl text-xs cursor-not-allowed border border-slate-705/30"
+                        >
+                          Terkunci
                         </button>
                       )}
                     </div>

@@ -49,5 +49,19 @@ export interface Assessment {
   status: 'PENDING' | 'REVISI' | 'VALIDATED' | 'APPROVED' | 'COMPLETED';
   hasil: 'K' | 'BK' | null; // K = Kompeten, BK = Belum Kompeten, null = Belum Dinilai
   catatanAsesor?: string;
+  apl01Link?: string;
+  apl02Link?: string;
   updatedAt: string;
 }
+
+export interface LSPNotification {
+  id: string;
+  userId: string; // Student ID
+  message: string;
+  type: 'status_change' | 'feedback' | 'assigned';
+  assessmentId: string;
+  assessmentName: string;
+  read: boolean;
+  createdAt: string;
+}
+
