@@ -19,6 +19,7 @@ export default function AdminDashboard() {
     assignAssessor, 
     validateAssessment,
     revisiAssessment,
+    deleteAssessment,
     addScheme, 
     toggleAssessorStatus,
     addStudent,
@@ -712,10 +713,23 @@ export default function AdminDashboard() {
                                   )}
 
                                   {asm.status === 'COMPLETED' && (
-                                    <span className="text-[11px] font-mono font-semibold text-slate-500">
+                                    <span className="text-[11px] font-mono font-semibold text-slate-500 mr-2">
                                       Arsip Selesai
                                     </span>
                                   )}
+
+                                  <button
+                                    onClick={() => {
+                                      if (window.confirm(`Apakah Anda yakin ingin menghapus permohonan uji kompetensi asesi ${asm.asesiName}?`)) {
+                                        deleteAssessment(asm.id);
+                                        toast.success(`Berhasil menghapus permohonan asesi ${asm.asesiName}.`);
+                                      }
+                                    }}
+                                    className="p-1 px-1.5 text-slate-400 hover:bg-rose-500/15 hover:text-rose-400 rounded-lg transition-all cursor-pointer border border-transparent hover:border-rose-500/20"
+                                    title="Hapus Permohonan Uji Kompetensi"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
                                 </div>
                               </td>
                             </tr>

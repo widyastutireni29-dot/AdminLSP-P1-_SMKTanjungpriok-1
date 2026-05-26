@@ -637,6 +637,14 @@ class LSPStoreManager {
     return true;
   }
 
+  public deleteAssessment(id: string): boolean {
+    this.state.assessments = this.state.assessments.filter(a => a.id !== id);
+    this.saveToLocalStorage();
+    this.addLog(`[UjiKom] Menghapus data permohonan sertifikasi: ${id}`);
+    this.notify();
+    return true;
+  }
+
   // Database Synchronization to real/simulated Firebase Firestore!
   public async syncWithFirebase() {
     this.state.syncStatus = 'syncing';
@@ -723,6 +731,7 @@ export function useLSPStore() {
     assignAssessor: (aId: string, asId: string, date: string) => lspStore.assignAssessor(aId, asId, date),
     validateAssessment: (id: string) => lspStore.validateAssessment(id),
     revisiAssessment: (id: string, catatan?: string) => lspStore.revisiAssessment(id, catatan),
+    deleteAssessment: (id: string) => lspStore.deleteAssessment(id),
     gradeAssessment: (aId: string, res: 'K' | 'BK', notes: string) => lspStore.gradeAssessment(aId, res, notes),
     markNotificationAsRead: (id: string) => lspStore.markNotificationAsRead(id),
     markAllNotificationsAsRead: (uId: string) => lspStore.markAllNotificationsAsRead(uId),
