@@ -48,7 +48,7 @@ export default function AdminDashboard() {
   // Custom delete confirmation modal state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
-    type: 'student' | 'assessor' | 'scheme';
+    type: 'student' | 'assessor' | 'scheme' | 'assessment';
     id: string;
     name: string;
   } | null>(null);
@@ -720,10 +720,12 @@ export default function AdminDashboard() {
 
                                   <button
                                     onClick={() => {
-                                      if (window.confirm(`Apakah Anda yakin ingin menghapus permohonan uji kompetensi asesi ${asm.asesiName}?`)) {
-                                        deleteAssessment(asm.id);
-                                        toast.success(`Berhasil menghapus permohonan asesi ${asm.asesiName}.`);
-                                      }
+                                      setDeleteConfirmation({
+                                        isOpen: true,
+                                        type: 'assessment',
+                                        id: asm.id,
+                                        name: `${asm.asesiName} (${asm.skemaName})`
+                                      });
                                     }}
                                     className="p-1 px-1.5 text-slate-400 hover:bg-rose-500/15 hover:text-rose-400 rounded-lg transition-all cursor-pointer border border-transparent hover:border-rose-500/20"
                                     title="Hapus Permohonan Uji Kompetensi"
@@ -1782,7 +1784,7 @@ export default function AdminDashboard() {
             <p className="text-xs text-slate-300 leading-relaxed mb-6">
               Apakah Anda yakin ingin menghapus{' '}
               <span className="font-semibold text-rose-400">
-                {deleteConfirmation.type === 'student' ? 'asesi (siswa)' : deleteConfirmation.type === 'assessor' ? 'asesor penguji' : 'skema uji'}
+                {deleteConfirmation.type === 'student' ? 'asesi (siswa)' : deleteConfirmation.type === 'assessor' ? 'asesor penguji' : deleteConfirmation.type === 'scheme' ? 'skema uji' : 'permohonan uji kompetensi'}
               </span>{' '}
               <strong className="text-white">"{deleteConfirmation.name}"</strong>? Aksi ini bersifat permanen dan tidak dapat dibatalkan.
             </p>
@@ -1806,6 +1808,9 @@ export default function AdminDashboard() {
                   } else if (type === 'scheme') {
                     deleteScheme(id);
                     toast.success(`Skema ${name} berhasil dihapus.`);
+                  } else if (type === 'assessment') {
+                    deleteAssessment(id);
+                    toast.success(`Berkas permohonan asesi ${name} berhasil dihapus.`);
                   }
                   setDeleteConfirmation(null);
                 }}
